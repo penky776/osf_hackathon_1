@@ -13,12 +13,13 @@ use http::{
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fs::File, io::BufReader, path::Path};
 use tower::ServiceExt;
-use tower_http::services::ServeFile;
+use tower_http::services::{ServeDir, ServeFile};
 
 #[tokio::main]
 async fn main() {
     let app = Router::new()
-        .nest_service("/", get(home))
+        .nest_service("/", get(home).delete(del_post_or_comment))
+        .nest_service("/static", ServeDir::new("assets/authenticated/static"))
         .route("/login", get(login).post(authenticate_login))
         .route("/register", get(register).post(authenticate_register));
 
@@ -84,17 +85,18 @@ struct User {
 
 #[derive(Deserialize, Serialize, Debug)]
 struct Post {
-    username: String,
-    post_id: String,
+    post_id: u32,
     title: String,
-    content: String,
+    author: String,
+    body: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 struct Comment {
-    username: String,
-    comment_id: String,
-    content: String,
+    comment_id: u32,
+    post_id: u32,
+    author: String,
+    body: String,
 }
 
 #[derive(Debug)]
@@ -185,3 +187,5 @@ async fn authenticate_register(Form(user): Form<User>) -> impl IntoResponse {
         ))
         .unwrap();
 }
+
+async fn del_post_or_comment() {}
