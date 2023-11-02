@@ -6,3 +6,4 @@ api for managing an online forum (WIP)
 - [ ] polish the frontend 
 - [ ] make documentation and more descriptive readme for the api
 - [ ] secure user authentication 
+- [ ] Error handling

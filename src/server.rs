@@ -22,7 +22,7 @@ async fn main() {
         .route("/addpost", post(add_post))
         .route("/deletepost", post(delete_post))
         .route("/addcomment", post(add_comment))
-        .route("/deletecomment", delete(delete_comment))
+        .route("/deletecomment", post(delete_comment))
         .route("/deleteuser", delete(del_user))
         .nest_service("/static", ServeDir::new("assets/authenticated/static"))
         .route("/login", get(login).post(authenticate_login))
@@ -222,69 +222,33 @@ async fn authenticate_register(Form(user): Form<User>) -> impl IntoResponse {
         .unwrap();
 }
 
-#[derive(Debug, Deserialize)]
-struct PostOrComment {
-    data_type: String,
-    post_id: u32,
-    title: String,
-    author: String,
-    body: String,
-    comment_id: u32,
+async fn add_post(Form(post): Form<Post>) {
+    write_to_json_file(
+        "assets/authenticated/static/api/json/posts.json",
+        JsonData::Post(post.clone()),
+    )
+    .unwrap();
+    write_to_json_file(
+        "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
+        JsonData::Post(post),
+    )
+    .unwrap();
 }
 
-// TODO: add del route (to front-end as well)
-async fn add_post_or_comment(Form(post_or_comment): Form<PostOrComment>) {
-    match post_or_comment.data_type.as_str() {
-        "post" => {
-            let post = Post {
-                data_type: post_or_comment.data_type,
-                post_id: post_or_comment.post_id,
-                title: post_or_comment.title,
-                author: post_or_comment.author,
-                body: post_or_comment.body,
-            };
-            write_to_json_file(
-                "assets/authenticated/static/api/json/posts.json",
-                JsonData::Post(post.clone()),
-            )
-            .unwrap();
-            write_to_json_file(
-                "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
-                JsonData::Post(post),
-            )
-            .unwrap();
-        }
-        "comment" => {
-            let comment = Comment {
-                data_type: post_or_comment.data_type,
-                comment_id: post_or_comment.comment_id,
-                post_id: post_or_comment.post_id,
-                author: post_or_comment.author,
-                body: post_or_comment.body,
-            };
-            write_to_json_file(
-                "assets/authenticated/static/api/json/comments.json",
-                JsonData::Comment(comment.clone()),
-            )
-            .unwrap();
-            write_to_json_file(
-                "assets/authenticated/static/api/json/users/".to_owned()
-                    + &comment.author
-                    + ".json",
-                JsonData::Comment(comment),
-            )
-            .unwrap();
-        }
-        _ => return,
-    }
+async fn add_comment(Form(comment): Form<Comment>) {
+    write_to_json_file(
+        "assets/authenticated/static/api/json/comments.json",
+        JsonData::Comment(comment.clone()),
+    )
+    .unwrap();
+    write_to_json_file(
+        "assets/authenticated/static/api/json/users/".to_owned() + &comment.author + ".json",
+        JsonData::Comment(comment),
+    )
+    .unwrap();
 }
-
-// TODO
-async fn add_post() {}
 
 async fn delete_post() {}
-
-async fn add_comment() {}
 
 async fn delete_comment() {}
 
