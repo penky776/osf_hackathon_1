@@ -1,4 +1,5 @@
-import postJSON from '../json/posts.json'
+// typescript was used here for convenience only 
+import postJSON from '../api/json/posts.json'
 
 class Posts {
     post_id: number;

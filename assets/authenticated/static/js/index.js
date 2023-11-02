@@ -1,4 +1,4 @@
-fetch('http://localhost:3000/static/json/posts.json', {
+fetch('http://localhost:3000/static/api/json/posts.json', {
     method: 'GET',
     headers: {
         'Accept': 'application/json',
@@ -33,4 +33,3 @@ fetch('http://localhost:3000/static/json/posts.json', {
         }
 
     )
-

@@ -18,7 +18,7 @@ use tower_http::services::{ServeDir, ServeFile};
 #[tokio::main]
 async fn main() {
     let app = Router::new()
-        .nest_service("/", get(home).delete(del_post_or_comment))
+        .nest_service("/", get(home).post(add_post_or_comment).delete(del_user))
         .nest_service("/static", ServeDir::new("assets/authenticated/static"))
         .route("/login", get(login).post(authenticate_login))
         .route("/register", get(register).post(authenticate_register));
@@ -83,16 +83,18 @@ struct User {
     password: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 struct Post {
+    data_type: String,
     post_id: u32,
     title: String,
     author: String,
     body: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 struct Comment {
+    data_type: String,
     comment_id: u32,
     post_id: u32,
     author: String,
@@ -142,14 +144,37 @@ fn write_to_json_file<P: AsRef<Path>>(path: P, input: JsonData) -> Result<(), Bo
 
     match input {
         JsonData::Comment(comment) => {
-            // TODO
+            let mut prev_comments: Vec<Comment> =
+                serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+
+            prev_comments.push(comment);
+
+            let updated_json =
+                serde_json::to_string(&prev_comments).expect("Failed to serialize data");
+            std::fs::write(
+                "assets/authenticated/static/api/json/comments.json",
+                updated_json,
+            )
+            .expect("failed to write data to file");
         }
         JsonData::Post(post) => {
-            // TODO
+            let mut prev_posts: Vec<Post> =
+                serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+
+            prev_posts.push(post);
+
+            let updated_json =
+                serde_json::to_string(&prev_posts).expect("Failed to serialize data");
+            std::fs::write(
+                "assets/authenticated/static/api/json/posts.json",
+                updated_json,
+            )
+            .expect("failed to write data to file");
         }
         JsonData::User(user) => {
             let mut prev_users: Vec<User> =
                 serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+
             prev_users.push(user);
 
             let updated_json =
@@ -175,6 +200,10 @@ async fn authenticate_register(Form(user): Form<User>) -> impl IntoResponse {
         }
     }
 
+    File::create(
+        "assets/authenticated/static/api/json/users/".to_owned() + &user.username + ".json",
+    )
+    .expect("unable to create json file for user");
     write_to_json_file("users.json", JsonData::User(user.clone())).unwrap();
 
     return Response::builder()
@@ -188,4 +217,63 @@ async fn authenticate_register(Form(user): Form<User>) -> impl IntoResponse {
         .unwrap();
 }
 
-async fn del_post_or_comment() {}
+#[derive(Debug, Deserialize)]
+struct PostOrComment {
+    data_type: String,
+    post_id: u32,
+    title: String,
+    author: String,
+    body: String,
+    comment_id: u32,
+}
+
+// TODO: add del route (to front-end as well)
+async fn add_post_or_comment(Form(post_or_comment): Form<PostOrComment>) {
+    match post_or_comment.data_type.as_str() {
+        "post" => {
+            let post = Post {
+                data_type: post_or_comment.data_type,
+                post_id: post_or_comment.post_id,
+                title: post_or_comment.title,
+                author: post_or_comment.author,
+                body: post_or_comment.body,
+            };
+            write_to_json_file(
+                "assets/authenticated/static/api/json/posts.json",
+                JsonData::Post(post.clone()),
+            )
+            .unwrap();
+            write_to_json_file(
+                "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
+                JsonData::Post(post),
+            )
+            .unwrap();
+        }
+        "comment" => {
+            let comment = Comment {
+                data_type: post_or_comment.data_type,
+                comment_id: post_or_comment.comment_id,
+                post_id: post_or_comment.post_id,
+                author: post_or_comment.author,
+                body: post_or_comment.body,
+            };
+            write_to_json_file(
+                "assets/authenticated/static/api/json/comments.json",
+                JsonData::Comment(comment.clone()),
+            )
+            .unwrap();
+            write_to_json_file(
+                "assets/authenticated/static/api/json/users/".to_owned()
+                    + &comment.author
+                    + ".json",
+                JsonData::Comment(comment),
+            )
+            .unwrap();
+        }
+        _ => return,
+    }
+}
+
+async fn del_user() {
+    // TODO
+}
