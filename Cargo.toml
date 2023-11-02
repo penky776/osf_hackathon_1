@@ -9,10 +9,6 @@ edition = "2021"
 name = "server"
 path = "src/server.rs"
 
-[[bin]]
-name = "api"
-path = "src/api.rs"
-
 [dependencies]
 serde_json = { version = "1.0.107", features = ["std"] }
 tokio = { version = "1", features = ["full"] }

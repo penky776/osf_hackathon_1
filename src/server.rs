@@ -3,7 +3,7 @@ use axum::{
     headers::Cookie,
     http::StatusCode,
     response::{Html, IntoResponse, Response},
-    routing::get,
+    routing::{delete, get, post},
     Form, Router, TypedHeader,
 };
 use http::{
@@ -18,7 +18,12 @@ use tower_http::services::{ServeDir, ServeFile};
 #[tokio::main]
 async fn main() {
     let app = Router::new()
-        .nest_service("/", get(home).post(add_post_or_comment).delete(del_user))
+        .nest_service("/", get(home))
+        .route("/addpost", post(add_post))
+        .route("/deletepost", post(delete_post))
+        .route("/addcomment", post(add_comment))
+        .route("/deletecomment", delete(delete_comment))
+        .route("/deleteuser", delete(del_user))
         .nest_service("/static", ServeDir::new("assets/authenticated/static"))
         .route("/login", get(login).post(authenticate_login))
         .route("/register", get(register).post(authenticate_register));
@@ -274,6 +279,13 @@ async fn add_post_or_comment(Form(post_or_comment): Form<PostOrComment>) {
     }
 }
 
-async fn del_user() {
-    // TODO
-}
+// TODO
+async fn add_post() {}
+
+async fn delete_post() {}
+
+async fn add_comment() {}
+
+async fn delete_comment() {}
+
+async fn del_user() {}
