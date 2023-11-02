@@ -1,5 +1,7 @@
+use argon2::Config;
 use axum::{
     body::{boxed, Body, BoxBody, Full},
+    extract::State,
     headers::Cookie,
     http::StatusCode,
     response::{Html, IntoResponse, Response},
@@ -11,12 +13,21 @@ use http::{
     Request,
 };
 use serde::{Deserialize, Serialize};
-use std::{error::Error, fs::File, io::BufReader, path::Path};
+use std::{
+    collections::HashMap,
+    error::Error,
+    fs::File,
+    io::BufReader,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 use tower::ServiceExt;
 use tower_http::services::{ServeDir, ServeFile};
 
 #[tokio::main]
 async fn main() {
+    let shared_state = Arc::new(Mutex::new(HashMap::new()));
+
     let app = Router::new()
         .nest_service("/", get(home))
         .route("/addpost", post(add_post))
@@ -26,7 +37,8 @@ async fn main() {
         .route("/deleteuser", delete(del_user))
         .nest_service("/static", ServeDir::new("assets/authenticated/static"))
         .route("/login", get(login).post(authenticate_login))
-        .route("/register", get(register).post(authenticate_register));
+        .route("/register", get(register).post(authenticate_register))
+        .with_state(shared_state);
 
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
@@ -90,7 +102,6 @@ struct User {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 struct Post {
-    data_type: String,
     post_id: u32,
     title: String,
     author: String,
@@ -99,7 +110,6 @@ struct Post {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 struct Comment {
-    data_type: String,
     comment_id: u32,
     post_id: u32,
     author: String,
@@ -122,14 +132,26 @@ fn read_user_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<User>, Box<dyn Err
     Ok(u)
 }
 
-async fn authenticate_login(Form(user): Form<User>) -> impl IntoResponse {
+async fn authenticate_login(
+    State(state_original): State<Arc<Mutex<HashMap<String, String>>>>,
+    Form(user): Form<User>,
+) -> impl IntoResponse {
     let u = read_user_from_file("users.json").unwrap();
 
     for a in &u {
         if a.username == user.username && a.password == user.password {
+            let salt: [u8; 32] = rand::random();
+            let config = Config::default();
+            let token = argon2::hash_encoded(user.username.as_bytes(), &salt, &config).unwrap();
+
+            let state = state_original.clone();
+            let mut locked_state = state.lock().unwrap();
+            locked_state.insert(user.username.clone(), token.clone());
+
             return Response::builder()
                 .status(StatusCode::SEE_OTHER)
                 .header(SET_COOKIE, "authenticated=yes")
+                .header(SET_COOKIE, "session_token=".to_owned() + &token)
                 .header(SET_COOKIE, "username=".to_owned() + &user.username)
                 .header(LOCATION, "/")
                 .body(Full::from("Logged in!"))
@@ -190,7 +212,12 @@ fn write_to_json_file<P: AsRef<Path>>(path: P, input: JsonData) -> Result<(), Bo
     Ok(())
 }
 
-async fn authenticate_register(Form(user): Form<User>) -> impl IntoResponse {
+async fn authenticate_register(
+    State(state_original): State<Arc<Mutex<HashMap<String, String>>>>,
+    Form(user): Form<User>,
+) -> impl IntoResponse {
+    // TODO: hash passwords
+
     let u = read_user_from_file("users.json").unwrap();
 
     for a in &u {
@@ -211,9 +238,18 @@ async fn authenticate_register(Form(user): Form<User>) -> impl IntoResponse {
     .expect("unable to create json file for user");
     write_to_json_file("users.json", JsonData::User(user.clone())).unwrap();
 
+    let salt: [u8; 32] = rand::random();
+    let config = Config::default();
+    let token = argon2::hash_encoded(user.username.as_bytes(), &salt, &config).unwrap();
+
+    let state = state_original.clone();
+    let mut locked_state = state.lock().unwrap();
+    locked_state.insert(user.username.clone(), token.clone());
+
     return Response::builder()
         .status(StatusCode::SEE_OTHER)
         .header(SET_COOKIE, "authenticated=yes")
+        .header(SET_COOKIE, "session_token=".to_owned() + &token)
         .header(SET_COOKIE, "username=".to_owned() + &user.username)
         .header(LOCATION, "/")
         .body(Full::from(
@@ -222,30 +258,35 @@ async fn authenticate_register(Form(user): Form<User>) -> impl IntoResponse {
         .unwrap();
 }
 
-async fn add_post(Form(post): Form<Post>) {
-    write_to_json_file(
-        "assets/authenticated/static/api/json/posts.json",
-        JsonData::Post(post.clone()),
-    )
-    .unwrap();
-    write_to_json_file(
-        "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
-        JsonData::Post(post),
-    )
-    .unwrap();
+#[derive(Deserialize, Serialize)]
+struct Input {
+    body: String,
+}
+
+async fn add_post(TypedHeader(username): TypedHeader<Cookie>, Form(input): Form<Input>) {
+    // write_to_json_file(
+    //     "assets/authenticated/static/api/json/posts.json",
+    //     JsonData::Post(post.clone()),
+    // )
+    // .unwrap();
+    // write_to_json_file(
+    //     "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
+    //     JsonData::Post(post),
+    // )
+    // .unwrap();
 }
 
 async fn add_comment(Form(comment): Form<Comment>) {
-    write_to_json_file(
-        "assets/authenticated/static/api/json/comments.json",
-        JsonData::Comment(comment.clone()),
-    )
-    .unwrap();
-    write_to_json_file(
-        "assets/authenticated/static/api/json/users/".to_owned() + &comment.author + ".json",
-        JsonData::Comment(comment),
-    )
-    .unwrap();
+    // write_to_json_file(
+    //     "assets/authenticated/static/api/json/comments.json",
+    //     JsonData::Comment(comment.clone()),
+    // )
+    // .unwrap();
+    // write_to_json_file(
+    //     "assets/authenticated/static/api/json/users/".to_owned() + &comment.author + ".json",
+    //     JsonData::Comment(comment),
+    // )
+    // .unwrap();
 }
 
 async fn delete_post() {}
