@@ -18,7 +18,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fs::File,
-    io::BufReader,
+    io::{BufReader, Write},
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -193,8 +193,11 @@ async fn authenticate_login(
         .unwrap();
 }
 
-fn write_to_json_file<P: AsRef<Path>>(path: P, input: JsonData) -> Result<(), Box<dyn Error>> {
-    let existing_json = std::fs::read_to_string(path)?;
+fn write_to_json_file<P: AsRef<Path> + Clone>(
+    path: P,
+    input: JsonData,
+) -> Result<(), Box<dyn Error>> {
+    let existing_json = std::fs::read_to_string(path.clone())?;
 
     match input {
         JsonData::Comment(comment) => {
@@ -205,11 +208,7 @@ fn write_to_json_file<P: AsRef<Path>>(path: P, input: JsonData) -> Result<(), Bo
 
             let updated_json =
                 serde_json::to_string(&prev_comments).expect("Failed to serialize data");
-            std::fs::write(
-                "assets/authenticated/static/api/json/comments.json",
-                updated_json,
-            )
-            .expect("failed to write data to file");
+            std::fs::write(path, updated_json).expect("failed to write data to file");
         }
         JsonData::Post(post) => {
             let mut prev_posts: Vec<Post> =
@@ -219,11 +218,7 @@ fn write_to_json_file<P: AsRef<Path>>(path: P, input: JsonData) -> Result<(), Bo
 
             let updated_json =
                 serde_json::to_string(&prev_posts).expect("Failed to serialize data");
-            std::fs::write(
-                "assets/authenticated/static/api/json/posts.json",
-                updated_json,
-            )
-            .expect("failed to write data to file");
+            std::fs::write(path, updated_json).expect("failed to write data to file");
         }
         JsonData::User(user) => {
             let mut prev_users: Vec<User> =
@@ -233,7 +228,7 @@ fn write_to_json_file<P: AsRef<Path>>(path: P, input: JsonData) -> Result<(), Bo
 
             let updated_json =
                 serde_json::to_string(&prev_users).expect("Failed to serialize data");
-            std::fs::write("users.json", updated_json).expect("Failed to write data to file");
+            std::fs::write(path, updated_json).expect("Failed to write data to file");
         }
     }
     Ok(())
@@ -259,10 +254,16 @@ async fn authenticate_register(
         }
     }
 
-    File::create(
-        "assets/authenticated/static/api/json/users/".to_owned() + &user.username + ".json",
-    )
-    .expect("unable to create json file for user");
+    // create [USER].json and initialize it for storing json objects in an array
+    let userjson_path =
+        "assets/authenticated/static/api/json/users/".to_owned() + &user.username + ".json";
+    let mut file = File::options()
+        .append(true)
+        .create(true)
+        .open(userjson_path)
+        .expect("Unable to create user's json file");
+    writeln!(&mut file, "[]").unwrap();
+
     write_to_json_file("users.json", JsonData::User(user.clone())).unwrap();
 
     let salt: [u8; 32] = rand::random();
@@ -285,42 +286,68 @@ async fn authenticate_register(
 }
 
 #[derive(Deserialize, Serialize)]
-struct Input {
+struct PostInput {
+    title: String,
     body: String,
 }
 
 async fn add_post(
-    State(state): State<AppState>,
-    TypedHeader(token): TypedHeader<Cookie>,
-    Form(input): Form<Input>,
+    State(state_original): State<AppState>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+    Form(input): Form<PostInput>,
 ) {
-    // write_to_json_file(
-    //     "assets/authenticated/static/api/json/posts.json",
-    //     JsonData::Post(post.clone()),
-    // )
-    // .unwrap();
-    // write_to_json_file(
-    //     "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
-    //     JsonData::Post(post),
-    // )
-    // .unwrap();
+    let username = cookie.get("username").expect("unable to find username");
+    let posts_json_path = "assets/authenticated/static/api/json/posts.json";
+
+    let post = construct_post(username, posts_json_path, input.title, input.body).unwrap();
+
+    if is_authenticated(state_original, cookie) {
+        write_to_json_file(posts_json_path, JsonData::Post(post.clone())).unwrap();
+        write_to_json_file(
+            "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
+            JsonData::Post(post),
+        )
+        .unwrap();
+    }
+}
+
+fn construct_post<P: AsRef<Path>>(
+    username: &str,
+    path: P,
+    post_title: String,
+    post_body: String,
+) -> Result<Post, Box<dyn Error>> {
+    // read posts.json
+    let existing_json = std::fs::read_to_string(path)?;
+
+    let prev_posts: Vec<Post> =
+        serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+
+    let last_post: &Post = &prev_posts[(prev_posts.len() - 1).to_le()];
+    let new_post_id = last_post.post_id + 1;
+
+    let post = Post {
+        post_id: new_post_id,
+        title: post_title,
+        author: username.to_string(),
+        body: post_body,
+    };
+
+    Ok(post)
+}
+
+#[derive(Deserialize, Serialize)]
+struct CommentInput {
+    body: String,
+    post_id: u32,
 }
 
 async fn add_comment(
-    State(state): State<AppState>,
-    TypedHeader(token): TypedHeader<Cookie>,
-    Form(input): Form<Input>,
+    State(state_original): State<AppState>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+    Form(input): Form<CommentInput>,
 ) {
-    // write_to_json_file(
-    //     "assets/authenticated/static/api/json/comments.json",
-    //     JsonData::Comment(comment.clone()),
-    // )
-    // .unwrap();
-    // write_to_json_file(
-    //     "assets/authenticated/static/api/json/users/".to_owned() + &comment.author + ".json",
-    //     JsonData::Comment(comment),
-    // )
-    // .unwrap();
+    // TODO
 }
 
 async fn delete_post() {}
