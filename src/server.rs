@@ -1,6 +1,7 @@
 use argon2::Config;
 use axum::{
-    body::{boxed, Body, BoxBody, Full},
+    body::{boxed, Body, Full},
+    debug_handler,
     extract::State,
     headers::Cookie,
     http::StatusCode,
@@ -24,12 +25,19 @@ use std::{
 use tower::ServiceExt;
 use tower_http::services::{ServeDir, ServeFile};
 
+#[derive(Clone)]
+struct AppState {
+    data: Arc<Mutex<HashMap<String, String>>>,
+}
+
 #[tokio::main]
 async fn main() {
-    let shared_state = Arc::new(Mutex::new(HashMap::new()));
+    let shared_state: AppState = AppState {
+        data: Arc::new(Mutex::new(HashMap::new())),
+    };
 
     let app = Router::new()
-        .nest_service("/", get(home))
+        .route("/", get(home))
         .route("/addpost", post(add_post))
         .route("/deletepost", post(delete_post))
         .route("/addcomment", post(add_comment))
@@ -46,19 +54,20 @@ async fn main() {
         .unwrap();
 }
 
-async fn home(TypedHeader(authenticated): TypedHeader<Cookie>) -> Response<BoxBody> {
+#[debug_handler]
+async fn home(
+    State(state_original): State<AppState>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+) -> impl IntoResponse {
     let service_authenticated = ServeFile::new("assets/authenticated/home.html");
     let service_unauthenticated = ServeFile::new("assets/unauthenticated/not_authenticated.html");
 
-    let auth = authenticated.get("authenticated");
-    if let Some(cookie) = auth {
-        if cookie == "yes" {
-            let res = service_authenticated
-                .oneshot(Request::new(Body::empty()))
-                .await
-                .unwrap();
-            return res.map(boxed);
-        }
+    if is_authenticated(state_original, cookie) {
+        let res = service_authenticated
+            .oneshot(Request::new(Body::empty()))
+            .await
+            .unwrap();
+        return res.map(boxed);
     }
 
     let res = service_unauthenticated
@@ -68,27 +77,46 @@ async fn home(TypedHeader(authenticated): TypedHeader<Cookie>) -> Response<BoxBo
     return res.map(boxed);
 }
 
-async fn login(TypedHeader(authenticated): TypedHeader<Cookie>) -> Html<&'static str> {
-    let auth = authenticated.get("authenticated");
+fn is_authenticated(state_original: AppState, cookie: Cookie) -> bool {
+    let session_token = cookie.clone();
+    let username = cookie;
+
+    let auth = session_token.get("session_token");
     if let Some(cookie) = auth {
-        if cookie == "yes" {
-            return Html(std::include_str!(
-                "../assets/authenticated/already_logged_in.html"
-            ));
+        let state = state_original.data.lock().unwrap();
+
+        if let Some(user) = username.get("username") {
+            if let Some(token) = state.get_key_value(user) {
+                if cookie == token.1 {
+                    return true;
+                }
+            }
         }
+    }
+    return false;
+}
+
+async fn login(
+    State(state_original): State<AppState>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+) -> Html<&'static str> {
+    if is_authenticated(state_original, cookie) {
+        return Html(std::include_str!(
+            "../assets/authenticated/already_logged_in.html"
+        ));
     }
 
     return Html(std::include_str!("../assets/unauthenticated/login.html"));
 }
 
-async fn register(TypedHeader(authenticated): TypedHeader<Cookie>) -> Html<&'static str> {
-    let auth = authenticated.get("authenticated");
-    if let Some(cookie) = auth {
-        if cookie == "yes" {
-            return Html(std::include_str!(
-                "../assets/authenticated/already_logged_in.html"
-            ));
-        }
+async fn register(
+    State(state_original): State<AppState>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+) -> Html<&'static str> {
+    if is_authenticated(state_original, cookie) {
+        return Html(std::include_str!(
+            "../assets/authenticated/already_logged_in.html"
+        ));
     }
 
     return Html(std::include_str!("../assets/unauthenticated/register.html"));
@@ -133,7 +161,7 @@ fn read_user_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<User>, Box<dyn Err
 }
 
 async fn authenticate_login(
-    State(state_original): State<Arc<Mutex<HashMap<String, String>>>>,
+    State(state_original): State<AppState>,
     Form(user): Form<User>,
 ) -> impl IntoResponse {
     let u = read_user_from_file("users.json").unwrap();
@@ -144,8 +172,7 @@ async fn authenticate_login(
             let config = Config::default();
             let token = argon2::hash_encoded(user.username.as_bytes(), &salt, &config).unwrap();
 
-            let state = state_original.clone();
-            let mut locked_state = state.lock().unwrap();
+            let mut locked_state = state_original.data.lock().unwrap();
             locked_state.insert(user.username.clone(), token.clone());
 
             return Response::builder()
@@ -213,7 +240,7 @@ fn write_to_json_file<P: AsRef<Path>>(path: P, input: JsonData) -> Result<(), Bo
 }
 
 async fn authenticate_register(
-    State(state_original): State<Arc<Mutex<HashMap<String, String>>>>,
+    State(state_original): State<AppState>,
     Form(user): Form<User>,
 ) -> impl IntoResponse {
     // TODO: hash passwords
@@ -242,8 +269,7 @@ async fn authenticate_register(
     let config = Config::default();
     let token = argon2::hash_encoded(user.username.as_bytes(), &salt, &config).unwrap();
 
-    let state = state_original.clone();
-    let mut locked_state = state.lock().unwrap();
+    let mut locked_state = state_original.data.lock().unwrap();
     locked_state.insert(user.username.clone(), token.clone());
 
     return Response::builder()
@@ -263,7 +289,11 @@ struct Input {
     body: String,
 }
 
-async fn add_post(TypedHeader(username): TypedHeader<Cookie>, Form(input): Form<Input>) {
+async fn add_post(
+    State(state): State<AppState>,
+    TypedHeader(token): TypedHeader<Cookie>,
+    Form(input): Form<Input>,
+) {
     // write_to_json_file(
     //     "assets/authenticated/static/api/json/posts.json",
     //     JsonData::Post(post.clone()),
@@ -276,7 +306,11 @@ async fn add_post(TypedHeader(username): TypedHeader<Cookie>, Form(input): Form<
     // .unwrap();
 }
 
-async fn add_comment(Form(comment): Form<Comment>) {
+async fn add_comment(
+    State(state): State<AppState>,
+    TypedHeader(token): TypedHeader<Cookie>,
+    Form(input): Form<Input>,
+) {
     // write_to_json_file(
     //     "assets/authenticated/static/api/json/comments.json",
     //     JsonData::Comment(comment.clone()),
