@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "post_id": 1,
+        "title": "test",
+        "author": "penky776",
+        "body": "testing"
+    },
+    {
+        "post_id": 2,
+        "title": "tekjtk",
+        "author": "penky776",
+        "body": "fkdjjfd"
+    }
+]
