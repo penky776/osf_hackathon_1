@@ -323,17 +323,27 @@ fn construct_post<P: AsRef<Path>>(
     let prev_posts: Vec<Post> =
         serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
 
-    let last_post: &Post = &prev_posts[(prev_posts.len() - 1).to_le()];
-    let new_post_id = last_post.post_id + 1;
+    // check if posts.json is empty
+    if prev_posts.len() != 0 {
+        let last_post: &Post = &prev_posts[(prev_posts.len() - 1).to_le()];
+        let new_post_id = last_post.post_id + 1;
 
-    let post = Post {
-        post_id: new_post_id,
+        let post = Post {
+            post_id: new_post_id,
+            title: post_title,
+            author: username.to_string(),
+            body: post_body,
+        };
+
+        return Ok(post);
+    }
+
+    return Ok(Post {
+        post_id: 1,
         title: post_title,
         author: username.to_string(),
         body: post_body,
-    };
-
-    Ok(post)
+    });
 }
 
 #[derive(Deserialize, Serialize)]
@@ -347,7 +357,49 @@ async fn add_comment(
     TypedHeader(cookie): TypedHeader<Cookie>,
     Form(input): Form<CommentInput>,
 ) {
-    // TODO
+    let username = cookie.get("username").expect("unable to find username");
+    let comments_json_path = "assets/authenticated/static/api/json/comments.json";
+
+    let comment =
+        construct_comment(username, comments_json_path, input.post_id, input.body).unwrap();
+
+    if is_authenticated(state_original, cookie) {
+        write_to_json_file(comments_json_path, JsonData::Comment(comment.clone())).unwrap();
+    }
+}
+
+fn construct_comment<P: AsRef<Path>>(
+    username: &str,
+    path: P,
+    post_id: u32,
+    comment_body: String,
+) -> Result<Comment, Box<dyn Error>> {
+    // read comments.json
+    let existing_json = std::fs::read_to_string(path)?;
+
+    let prev_comments: Vec<Comment> =
+        serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+
+    if prev_comments.len() != 0 {
+        let last_comment: &Comment = &prev_comments[(prev_comments.len() - 1).to_le()];
+        let new_comment_id = last_comment.comment_id + 1;
+
+        let comment = Comment {
+            comment_id: new_comment_id,
+            post_id,
+            author: username.to_string(),
+            body: comment_body,
+        };
+
+        return Ok(comment);
+    }
+
+    return Ok(Comment {
+        comment_id: 1,
+        post_id,
+        author: username.to_string(),
+        body: comment_body,
+    });
 }
 
 async fn delete_post() {}
