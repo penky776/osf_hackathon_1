@@ -4,5 +4,11 @@
         "post_id": 1,
         "author": "PotatoLord",
         "body": "fdkjfdk"
+    },
+    {
+        "comment_id": 2,
+        "post_id": 1,
+        "author": "penky776",
+        "body": "fdkjfdk"
     }
 ]

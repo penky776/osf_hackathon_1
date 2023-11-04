@@ -7,7 +7,7 @@ use axum::{
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     routing::{delete, get, post},
-    Form, Router, TypedHeader,
+    Form, Json, Router, TypedHeader,
 };
 use http::{
     header::{LOCATION, SET_COOKIE},
@@ -296,12 +296,17 @@ async fn add_post(
     TypedHeader(cookie): TypedHeader<Cookie>,
     Form(input): Form<PostInput>,
 ) {
-    let username = cookie.get("username").expect("unable to find username");
+    let username = cookie.clone();
     let posts_json_path = "assets/authenticated/static/api/json/posts.json";
 
-    let post = construct_post(username, posts_json_path, input.title, input.body).unwrap();
-
     if is_authenticated(state_original, cookie) {
+        let post = construct_post(
+            username.get("username").expect("unable to find username"),
+            posts_json_path,
+            input.title,
+            input.body,
+        )
+        .unwrap();
         write_to_json_file(posts_json_path, JsonData::Post(post.clone())).unwrap();
         write_to_json_file(
             "assets/authenticated/static/api/json/users/".to_owned() + &post.author + ".json",
@@ -357,13 +362,18 @@ async fn add_comment(
     TypedHeader(cookie): TypedHeader<Cookie>,
     Form(input): Form<CommentInput>,
 ) {
-    let username = cookie.get("username").expect("unable to find username");
+    let username = cookie.clone();
     let comments_json_path = "assets/authenticated/static/api/json/comments.json";
 
-    let comment =
-        construct_comment(username, comments_json_path, input.post_id, input.body).unwrap();
-
     if is_authenticated(state_original, cookie) {
+        let comment = construct_comment(
+            username.get("username").expect("unable to find username"),
+            comments_json_path,
+            input.post_id,
+            input.body,
+        )
+        .unwrap();
+
         write_to_json_file(comments_json_path, JsonData::Comment(comment.clone())).unwrap();
     }
 }
@@ -402,7 +412,73 @@ fn construct_comment<P: AsRef<Path>>(
     });
 }
 
-async fn delete_post() {}
+trait ID {
+    fn get_id(&self) -> u32;
+}
+
+struct T {
+    id: u32,
+}
+
+impl ID for Comment {
+    fn get_id(&self) -> u32 {
+        self.comment_id
+    }
+}
+
+impl ID for T {
+    fn get_id(&self) -> u32 {
+        self.id
+    }
+}
+
+impl ID for Post {
+    fn get_id(&self) -> u32 {
+        self.post_id
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+struct Id {
+    id: u32,
+}
+
+async fn delete_post(
+    State(state_original): State<AppState>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+    Form(post_id): Form<Id>,
+) {
+    let username_cookie = cookie.clone();
+    let user = username_cookie.get("username").unwrap();
+
+    let posts_json = "assets/authenticated/static/api/json/posts.json";
+    let user_json = "assets/authenticated/static/api/json/users/".to_owned() + user + ".json";
+
+    if is_authenticated(state_original, cookie) {
+        let existing_json = std::fs::read_to_string(posts_json).unwrap();
+        let mut posts: Vec<Post> =
+            serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+
+        remove_object_with_id(&mut posts, post_id.id);
+
+        let updated_json = serde_json::to_string(&posts).expect("Failed to serialize data");
+        std::fs::write(posts_json, updated_json).expect("failed to write data to file");
+
+        let existing_json_userjson = std::fs::read_to_string(&user_json).unwrap();
+        let mut posts_userjson: Vec<Post> = serde_json::from_str(&existing_json_userjson).unwrap();
+
+        remove_object_with_id(&mut posts_userjson, post_id.id);
+
+        let updated_json_userjson =
+            serde_json::to_string(&posts_userjson).expect("Failed to serialize data");
+        std::fs::write(&user_json, updated_json_userjson).expect("failed to write data to file");
+    }
+}
+
+fn remove_object_with_id<T: ID>(vector: &mut Vec<T>, id: u32) {
+    let index = vector.iter().position(|x| x.get_id() == id).unwrap();
+    vector.remove(index);
+}
 
 async fn delete_comment() {}
 
