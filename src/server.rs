@@ -13,7 +13,7 @@ use http::{
     header::{LOCATION, SET_COOKIE},
     Request,
 };
-use serde::{Deserialize, Serialize};
+use model::{AppState, Comment, CommentInput, Id, JsonData, Post, PostInput, User, ID};
 use std::{
     collections::HashMap,
     error::Error,
@@ -25,10 +25,7 @@ use std::{
 use tower::ServiceExt;
 use tower_http::services::{ServeDir, ServeFile};
 
-#[derive(Clone)]
-struct AppState {
-    data: Arc<Mutex<HashMap<String, String>>>,
-}
+mod model;
 
 #[tokio::main]
 async fn main() {
@@ -120,35 +117,6 @@ async fn register(
     }
 
     return Html(std::include_str!("../assets/unauthenticated/register.html"));
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct User {
-    username: String,
-    password: String,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct Post {
-    post_id: u32,
-    title: String,
-    author: String,
-    body: String,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct Comment {
-    comment_id: u32,
-    post_id: u32,
-    author: String,
-    body: String,
-}
-
-#[derive(Debug)]
-enum JsonData {
-    User(User),
-    Post(Post),
-    Comment(Comment),
 }
 
 fn read_user_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<User>, Box<dyn Error>> {
@@ -285,12 +253,6 @@ async fn authenticate_register(
         .unwrap();
 }
 
-#[derive(Deserialize, Serialize)]
-struct PostInput {
-    title: String,
-    body: String,
-}
-
 async fn add_post(
     State(state_original): State<AppState>,
     TypedHeader(cookie): TypedHeader<Cookie>,
@@ -351,12 +313,6 @@ fn construct_post<P: AsRef<Path>>(
     });
 }
 
-#[derive(Deserialize, Serialize)]
-struct CommentInput {
-    body: String,
-    post_id: u32,
-}
-
 async fn add_comment(
     State(state_original): State<AppState>,
     TypedHeader(cookie): TypedHeader<Cookie>,
@@ -410,37 +366,6 @@ fn construct_comment<P: AsRef<Path>>(
         author: username.to_string(),
         body: comment_body,
     });
-}
-
-trait ID {
-    fn get_id(&self) -> u32;
-}
-
-struct T {
-    id: u32,
-}
-
-impl ID for Comment {
-    fn get_id(&self) -> u32 {
-        self.comment_id
-    }
-}
-
-impl ID for T {
-    fn get_id(&self) -> u32 {
-        self.id
-    }
-}
-
-impl ID for Post {
-    fn get_id(&self) -> u32 {
-        self.post_id
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-struct Id {
-    id: u32,
 }
 
 async fn delete_post(
