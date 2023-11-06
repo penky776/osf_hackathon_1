@@ -1,11 +1,11 @@
-use std::{error::Error, path::Path};
+use std::{error::Error, path::Path, u32};
 
 use axum::{extract::State, headers::Cookie, Form, TypedHeader};
 
 use crate::{
     authenticate::is_authenticated,
     model::{
-        remove_object_with_id, write_to_json_file, AppState, Comment, CommentInput, Id, JsonData,
+        get_time, remove_object_with_id, write_to_json_file, AppState, Comment, CommentInput, Id,
     },
 };
 
@@ -26,14 +26,14 @@ pub async fn add_comment(
         )
         .unwrap();
 
-        write_to_json_file(comments_json_path, JsonData::Comment(comment.clone())).unwrap();
+        write_to_json_file(comments_json_path, comment).unwrap();
     }
 }
 
 pub fn construct_comment<P: AsRef<Path>>(
     username: &str,
     path: P,
-    post_id: u32,
+    post_id: String,
     comment_body: String,
 ) -> Result<Comment, Box<dyn Error>> {
     // read comments.json
@@ -44,23 +44,25 @@ pub fn construct_comment<P: AsRef<Path>>(
 
     if prev_comments.len() != 0 {
         let last_comment: &Comment = &prev_comments[(prev_comments.len() - 1).to_le()];
-        let new_comment_id = last_comment.comment_id + 1;
+        let new_comment_id = last_comment.comment_id.parse::<u32>().unwrap() + 1;
 
         let comment = Comment {
-            comment_id: new_comment_id,
+            comment_id: new_comment_id.to_string(),
             post_id,
             author: username.to_string(),
             body: comment_body,
+            date: get_time(),
         };
 
         return Ok(comment);
     }
 
     return Ok(Comment {
-        comment_id: 1,
+        comment_id: 1.to_string(),
         post_id,
         author: username.to_string(),
         body: comment_body,
+        date: get_time(),
     });
 }
 

@@ -5,6 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -20,25 +21,20 @@ pub struct User {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Post {
-    pub post_id: u32,
+    pub post_id: String,
     pub title: String,
     pub author: String,
     pub body: String,
+    pub date: DateTime<Utc>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Comment {
-    pub comment_id: u32,
-    pub post_id: u32,
+    pub comment_id: String,
+    pub post_id: String,
     pub author: String,
     pub body: String,
-}
-
-#[derive(Debug)]
-pub enum JsonData {
-    User(User),
-    Post(Post),
-    Comment(Comment),
+    pub date: DateTime<Utc>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -50,82 +46,66 @@ pub struct PostInput {
 #[derive(Deserialize, Serialize)]
 pub struct CommentInput {
     pub body: String,
-    pub post_id: u32,
+    pub post_id: String,
 }
 
 pub trait ID {
-    fn get_id(&self) -> u32;
+    fn get_id(&self) -> String;
 }
 
 pub struct T {
-    pub id: u32,
+    pub id: String,
 }
 
 impl ID for Comment {
-    fn get_id(&self) -> u32 {
-        self.comment_id
+    fn get_id(&self) -> String {
+        self.comment_id.clone()
     }
 }
 
 impl ID for T {
-    fn get_id(&self) -> u32 {
-        self.id
+    fn get_id(&self) -> String {
+        self.id.clone()
     }
 }
 
 impl ID for Post {
-    fn get_id(&self) -> u32 {
-        self.post_id
+    fn get_id(&self) -> String {
+        self.post_id.clone()
     }
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Id {
-    pub id: u32,
+    pub id: String,
 }
 
-pub fn write_to_json_file<P: AsRef<Path> + Clone>(
+pub fn write_to_json_file<P: AsRef<Path> + Clone, A: for<'a> Deserialize<'a> + serde::Serialize>(
     path: P,
-    input: JsonData,
+    input: A,
 ) -> Result<(), Box<dyn Error>> {
     let existing_json = std::fs::read_to_string(path.clone())?;
 
-    match input {
-        JsonData::Comment(comment) => {
-            let mut prev_comments: Vec<Comment> =
-                serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+    let mut prev_data: Vec<A> =
+        serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
 
-            prev_comments.push(comment);
+    prev_data.push(input);
 
-            let updated_json =
-                serde_json::to_string(&prev_comments).expect("Failed to serialize data");
-            std::fs::write(path, updated_json).expect("failed to write data to file");
-        }
-        JsonData::Post(post) => {
-            let mut prev_posts: Vec<Post> =
-                serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+    let updated_json = serde_json::to_string(&prev_data).expect("Failed to serialize data");
+    std::fs::write(path, updated_json).expect("Failed to write data to file");
 
-            prev_posts.push(post);
-
-            let updated_json =
-                serde_json::to_string(&prev_posts).expect("Failed to serialize data");
-            std::fs::write(path, updated_json).expect("failed to write data to file");
-        }
-        JsonData::User(user) => {
-            let mut prev_users: Vec<User> =
-                serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
-
-            prev_users.push(user);
-
-            let updated_json =
-                serde_json::to_string(&prev_users).expect("Failed to serialize data");
-            std::fs::write(path, updated_json).expect("Failed to write data to file");
-        }
-    }
     Ok(())
 }
 
-pub fn remove_object_with_id<T: ID>(vector: &mut Vec<T>, id: u32) {
+pub fn remove_object_with_id<T: ID>(vector: &mut Vec<T>, id: String) {
     let index = vector.iter().position(|x| x.get_id() == id).unwrap();
     vector.remove(index);
+}
+
+pub fn get_time() -> DateTime<Utc> {
+    Utc::now()
+}
+
+pub fn generate_unique_id() {
+    // TODO
 }

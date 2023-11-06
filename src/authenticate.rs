@@ -18,7 +18,7 @@ use http::{
     StatusCode,
 };
 
-use crate::model::{write_to_json_file, AppState, JsonData, User};
+use crate::model::{write_to_json_file, AppState, User};
 
 pub fn is_authenticated(state_original: AppState, cookie: Cookie) -> bool {
     let session_token = cookie.clone();
@@ -111,7 +111,7 @@ pub async fn authenticate_register(
         .expect("Unable to create user's json file");
     writeln!(&mut file, "[]").unwrap();
 
-    write_to_json_file("users.json", JsonData::User(user.clone())).unwrap();
+    write_to_json_file("users.json", user.clone()).unwrap();
 
     let salt: [u8; 32] = rand::random();
     let config = Config::default();
