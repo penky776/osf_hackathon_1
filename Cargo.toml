@@ -7,7 +7,7 @@ edition = "2021"
 
 [[bin]]
 name = "server"
-path = "src/server.rs"
+path = "src/route.rs"
 
 [dependencies]
 serde_json = { version = "1.0.107", features = ["std"] }
