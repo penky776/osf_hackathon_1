@@ -1,11 +1,12 @@
-use std::{error::Error, path::Path, u32};
+use std::{error::Error, path::Path};
 
 use axum::{extract::State, headers::Cookie, Form, TypedHeader};
 
 use crate::{
     authenticate::is_authenticated,
     model::{
-        get_time, remove_object_with_id, write_to_json_file, AppState, Comment, CommentInput, Id,
+        get_time, remove_from_json_file_based_on_id, write_to_json_file, AppState, Comment,
+        CommentInput, Id,
     },
 };
 
@@ -74,13 +75,6 @@ pub async fn delete_comment(
     let comments_json = "assets/authenticated/static/api/json/comments.json";
 
     if is_authenticated(state_original, cookie) {
-        let existing_json = std::fs::read_to_string(comments_json).unwrap();
-        let mut comments: Vec<Comment> =
-            serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
-
-        remove_object_with_id(&mut comments, comment_id.id);
-
-        let updated_json = serde_json::to_string(&comments).expect("Failed to serialize data");
-        std::fs::write(comments_json, updated_json).expect("failed to write data to file");
+        remove_from_json_file_based_on_id::<&str, Comment>(comments_json, comment_id.id).unwrap();
     }
 }

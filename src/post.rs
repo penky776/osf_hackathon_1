@@ -4,7 +4,10 @@ use axum::{extract::State, headers::Cookie, Form, TypedHeader};
 
 use crate::{
     authenticate::is_authenticated,
-    model::{get_time, remove_object_with_id, write_to_json_file, AppState, Id, Post, PostInput},
+    model::{
+        get_time, remove_from_json_file_based_on_id, write_to_json_file, AppState, Id, Post,
+        PostInput,
+    },
 };
 
 pub async fn add_post(
@@ -82,23 +85,8 @@ pub async fn delete_post(
     let user_json = "assets/authenticated/static/api/json/users/".to_owned() + user + ".json";
 
     if is_authenticated(state_original, cookie) {
-        let existing_json = std::fs::read_to_string(posts_json).unwrap();
-        let mut posts: Vec<Post> =
-            serde_json::from_str(&existing_json).expect("Failed to deserialize JSON data");
+        remove_from_json_file_based_on_id::<&str, Post>(posts_json, post_id.id.clone()).unwrap();
 
-        // todo
-        remove_object_with_id(&mut posts, post_id.id.clone());
-
-        let updated_json = serde_json::to_string(&posts).expect("Failed to serialize data");
-        std::fs::write(posts_json, updated_json).expect("failed to write data to file");
-
-        let existing_json_userjson = std::fs::read_to_string(&user_json).unwrap();
-        let mut posts_userjson: Vec<Post> = serde_json::from_str(&existing_json_userjson).unwrap();
-
-        remove_object_with_id(&mut posts_userjson, post_id.id);
-
-        let updated_json_userjson =
-            serde_json::to_string(&posts_userjson).expect("Failed to serialize data");
-        std::fs::write(&user_json, updated_json_userjson).expect("failed to write data to file");
+        remove_from_json_file_based_on_id::<&str, Post>(&user_json, post_id.id).unwrap();
     }
 }
