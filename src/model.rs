@@ -7,6 +7,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -21,7 +22,7 @@ pub struct User {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Post {
-    pub post_id: String,
+    pub post_id: Uuid,
     pub title: String,
     pub author: String,
     pub body: String,
@@ -30,8 +31,8 @@ pub struct Post {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Comment {
-    pub comment_id: String,
-    pub post_id: String,
+    pub comment_id: Uuid,
+    pub post_id: Uuid,
     pub author: String,
     pub body: String,
     pub date: DateTime<Utc>,
@@ -41,8 +42,8 @@ pub fn get_time() -> DateTime<Utc> {
     Utc::now()
 }
 
-pub fn generate_unique_id() {
-    // TODO
+pub fn generate_unique_id() -> Uuid {
+    Uuid::new_v4()
 }
 
 #[derive(Deserialize, Serialize)]
@@ -54,7 +55,7 @@ pub struct PostInput {
 #[derive(Deserialize, Serialize)]
 pub struct CommentInput {
     pub body: String,
-    pub post_id: String,
+    pub post_id: Uuid,
 }
 
 pub fn write_to_json_file<P: AsRef<Path> + Clone, A: for<'a> Deserialize<'a> + Serialize>(
@@ -79,7 +80,7 @@ pub fn remove_from_json_file_based_on_id<
     A: for<'a> Deserialize<'a> + Serialize + ID,
 >(
     path: P,
-    id: String,
+    id: Uuid,
 ) -> Result<(), Box<dyn Error>> {
     let exisiting_json = std::fs::read_to_string(path.clone())?;
 
@@ -94,37 +95,37 @@ pub fn remove_from_json_file_based_on_id<
 }
 
 pub trait ID {
-    fn get_id(&self) -> String;
+    fn get_id(&self) -> Uuid;
 }
 
 pub struct T {
-    pub id: String,
+    pub id: Uuid,
 }
 
 impl ID for Comment {
-    fn get_id(&self) -> String {
+    fn get_id(&self) -> Uuid {
         self.comment_id.clone()
     }
 }
 
 impl ID for T {
-    fn get_id(&self) -> String {
+    fn get_id(&self) -> Uuid {
         self.id.clone()
     }
 }
 
 impl ID for Post {
-    fn get_id(&self) -> String {
+    fn get_id(&self) -> Uuid {
         self.post_id.clone()
     }
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Id {
-    pub id: String,
+    pub id: Uuid,
 }
 
-fn remove_object_with_id<T: ID>(vector: &mut Vec<T>, id: String) {
+fn remove_object_with_id<T: ID>(vector: &mut Vec<T>, id: Uuid) {
     let index = vector.iter().position(|x| x.get_id() == id).unwrap();
     vector.remove(index);
 }
