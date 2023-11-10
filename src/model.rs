@@ -16,6 +16,7 @@ pub struct AppState {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct User {
+    pub user_id: Uuid,
     pub username: String,
     pub password: String,
 }
@@ -56,6 +57,12 @@ pub struct PostInput {
 pub struct CommentInput {
     pub body: String,
     pub post_id: Uuid,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct UserInput {
+    pub username: String,
+    pub password: String,
 }
 
 pub fn write_to_json_file<P: AsRef<Path> + Clone, A: for<'a> Deserialize<'a> + Serialize>(
@@ -117,6 +124,12 @@ impl ID for T {
 impl ID for Post {
     fn get_id(&self) -> Uuid {
         self.post_id.clone()
+    }
+}
+
+impl ID for User {
+    fn get_id(&self) -> Uuid {
+        self.user_id.clone()
     }
 }
 

@@ -8,8 +8,12 @@ use axum::{
 use http::Request;
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
+use uuid::Uuid;
 
-use crate::{authenticate::is_authenticated, model::AppState};
+use crate::{
+    authenticate::is_authenticated,
+    model::{remove_from_json_file_based_on_id, AppState, User},
+};
 
 pub async fn login(
     State(state_original): State<AppState>,
@@ -60,5 +64,24 @@ pub async fn home(
     return res.map(boxed);
 }
 
-// TODO
-pub async fn del_user() {}
+pub async fn del_user(
+    State(state_original): State<AppState>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+) {
+    let username = cookie.clone();
+    let user_id = cookie.clone();
+
+    if is_authenticated(state_original, cookie) {
+        let userjson_path = "assets/authenticated/static/api/json/users/".to_owned()
+            + username.get("username").unwrap()
+            + ".json";
+
+        std::fs::remove_file(userjson_path).unwrap();
+
+        remove_from_json_file_based_on_id::<&str, User>(
+            "users.json",
+            user_id.get("user_id").unwrap().parse::<Uuid>().unwrap(),
+        )
+        .unwrap();
+    }
+}

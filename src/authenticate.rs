@@ -18,7 +18,7 @@ use http::{
     StatusCode,
 };
 
-use crate::model::{write_to_json_file, AppState, User};
+use crate::model::{generate_unique_id, write_to_json_file, AppState, User, UserInput};
 
 pub fn is_authenticated(state_original: AppState, cookie: Cookie) -> bool {
     let session_token = cookie.clone();
@@ -50,9 +50,9 @@ pub fn read_user_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<User>, Box<dyn
 
 pub async fn authenticate_login(
     State(state_original): State<AppState>,
-    Form(user): Form<User>,
+    Form(user): Form<UserInput>,
 ) -> impl IntoResponse {
-    let u = read_user_from_file("users.json").unwrap();
+    let u: Vec<User> = read_user_from_file("users.json").unwrap();
 
     for a in &u {
         if a.username == user.username && a.password == user.password {
@@ -68,6 +68,7 @@ pub async fn authenticate_login(
                 .header(SET_COOKIE, "authenticated=yes")
                 .header(SET_COOKIE, "session_token=".to_owned() + &token)
                 .header(SET_COOKIE, "username=".to_owned() + &user.username)
+                .header(SET_COOKIE, "user_id=".to_owned() + &a.user_id.to_string())
                 .header(LOCATION, "/")
                 .body(Full::from("Logged in!"))
                 .unwrap();
@@ -83,7 +84,7 @@ pub async fn authenticate_login(
 
 pub async fn authenticate_register(
     State(state_original): State<AppState>,
-    Form(user): Form<User>,
+    Form(user): Form<UserInput>,
 ) -> impl IntoResponse {
     // TODO: hash passwords
 
@@ -111,6 +112,12 @@ pub async fn authenticate_register(
         .expect("Unable to create user's json file");
     writeln!(&mut file, "[]").unwrap();
 
+    let user = User {
+        user_id: generate_unique_id(),
+        username: user.username,
+        password: user.password,
+    };
+
     write_to_json_file("users.json", user.clone()).unwrap();
 
     let salt: [u8; 32] = rand::random();
@@ -125,6 +132,10 @@ pub async fn authenticate_register(
         .header(SET_COOKIE, "authenticated=yes")
         .header(SET_COOKIE, "session_token=".to_owned() + &token)
         .header(SET_COOKIE, "username=".to_owned() + &user.username)
+        .header(
+            SET_COOKIE,
+            "user_id=".to_owned() + &user.user_id.to_string(),
+        )
         .header(LOCATION, "/")
         .body(Full::from(
             "logged in with your new account! Please redirect to the homepage.",
