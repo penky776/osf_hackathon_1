@@ -1,13 +1,14 @@
 use std::error::Error;
 
-use axum::{extract::State, headers::Cookie, Form, TypedHeader};
+use axum::{
+    extract::{State, TypedHeader},
+    headers::Cookie,
+    Form,
+};
 
-use crate::{
-    authenticate::is_authenticated,
-    model::{
-        generate_unique_id, get_time, remove_from_json_file_based_on_id, write_to_json_file,
-        AppState, Id, Post, PostInput,
-    },
+use crate::model::{
+    check_csrf, generate_unique_id, get_time, remove_from_json_file_based_on_id,
+    write_to_json_file, AppState, Id, Post, PostInput,
 };
 
 pub async fn add_post(
@@ -18,7 +19,7 @@ pub async fn add_post(
     let username = cookie.clone();
     let posts_json_path = "assets/authenticated/static/api/json/posts.json";
 
-    if is_authenticated(state_original, cookie) {
+    if check_csrf(state_original, cookie, input.csrf_token) {
         let post = construct_post(
             username.get("username").expect("unable to find username"),
             input.title,
@@ -60,7 +61,7 @@ pub async fn delete_post(
     let posts_json = "assets/authenticated/static/api/json/posts.json";
     let user_json = "assets/authenticated/static/api/json/users/".to_owned() + user + ".json";
 
-    if is_authenticated(state_original, cookie) {
+    if check_csrf(state_original, cookie, post_id.csrf_token) {
         remove_from_json_file_based_on_id::<&str, Post>(posts_json, post_id.id.clone()).unwrap();
 
         remove_from_json_file_based_on_id::<&str, Post>(&user_json, post_id.id).unwrap();

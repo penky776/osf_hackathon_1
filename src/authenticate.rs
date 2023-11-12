@@ -56,19 +56,19 @@ pub async fn authenticate_login(
 
     for a in &u {
         if a.username == user.username && a.password == user.password {
-            let salt: [u8; 32] = rand::random();
-            let config = Config::default();
-            let token = argon2::hash_encoded(user.username.as_bytes(), &salt, &config).unwrap();
+            let sess_token = generate_hash(user.username.clone());
 
             let mut locked_state = state_original.data.lock().unwrap();
-            locked_state.insert(user.username.clone(), token.clone());
+
+            locked_state.insert(user.username.clone(), sess_token.clone());
+
+            // generate csrf token and insert it into hashamp
+            locked_state.insert(a.user_id.to_string(), generate_hash(sess_token.clone()));
 
             return Response::builder()
                 .status(StatusCode::SEE_OTHER)
-                .header(SET_COOKIE, "authenticated=yes")
-                .header(SET_COOKIE, "session_token=".to_owned() + &token)
+                .header(SET_COOKIE, "session_token=".to_owned() + &sess_token)
                 .header(SET_COOKIE, "username=".to_owned() + &user.username)
-                .header(SET_COOKIE, "user_id=".to_owned() + &a.user_id.to_string())
                 .header(LOCATION, "/")
                 .body(Full::from("Logged in!"))
                 .unwrap();
@@ -77,7 +77,6 @@ pub async fn authenticate_login(
 
     return Response::builder()
         .status(StatusCode::SEE_OTHER)
-        .header(SET_COOKIE, "authenticated=no")
         .body(Full::from("incorrect username or password!"))
         .unwrap();
 }
@@ -94,7 +93,6 @@ pub async fn authenticate_register(
         if a.username == user.username {
             return Response::builder()
                 .status(StatusCode::SEE_OTHER)
-                .header(SET_COOKIE, "authenticated=no")
                 .body(Full::from(
                     "username already exists! Please choose a different one.",
                 ))
@@ -120,25 +118,28 @@ pub async fn authenticate_register(
 
     write_to_json_file("users.json", user.clone()).unwrap();
 
-    let salt: [u8; 32] = rand::random();
-    let config = Config::default();
-    let token = argon2::hash_encoded(user.username.as_bytes(), &salt, &config).unwrap();
+    let sess_token = generate_hash(user.username.clone());
 
     let mut locked_state = state_original.data.lock().unwrap();
-    locked_state.insert(user.username.clone(), token.clone());
+    locked_state.insert(user.username.clone(), sess_token.clone());
+
+    // generate csrf token and insert it into hashamp
+    locked_state.insert(user.user_id.to_string(), generate_hash(sess_token.clone()));
 
     return Response::builder()
         .status(StatusCode::SEE_OTHER)
-        .header(SET_COOKIE, "authenticated=yes")
-        .header(SET_COOKIE, "session_token=".to_owned() + &token)
+        .header(SET_COOKIE, "session_token=".to_owned() + &sess_token)
         .header(SET_COOKIE, "username=".to_owned() + &user.username)
-        .header(
-            SET_COOKIE,
-            "user_id=".to_owned() + &user.user_id.to_string(),
-        )
         .header(LOCATION, "/")
         .body(Full::from(
             "logged in with your new account! Please redirect to the homepage.",
         ))
         .unwrap();
+}
+
+fn generate_hash(input: String) -> String {
+    let salt: [u8; 32] = rand::random();
+    let config = Config::default();
+
+    argon2::hash_encoded(input.as_bytes(), &salt, &config).unwrap()
 }

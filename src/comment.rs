@@ -3,12 +3,9 @@ use std::error::Error;
 use axum::{extract::State, headers::Cookie, Form, TypedHeader};
 use uuid::Uuid;
 
-use crate::{
-    authenticate::is_authenticated,
-    model::{
-        generate_unique_id, get_time, remove_from_json_file_based_on_id, write_to_json_file,
-        AppState, Comment, CommentInput, Id,
-    },
+use crate::model::{
+    check_csrf, generate_unique_id, get_time, remove_from_json_file_based_on_id,
+    write_to_json_file, AppState, Comment, CommentInput, Id,
 };
 
 pub async fn add_comment(
@@ -19,7 +16,7 @@ pub async fn add_comment(
     let username = cookie.clone();
     let comments_json_path = "assets/authenticated/static/api/json/comments.json";
 
-    if is_authenticated(state_original, cookie) {
+    if check_csrf(state_original, cookie, input.csrf_token) {
         let comment = construct_comment(
             username.get("username").expect("unable to find username"),
             input.post_id,
@@ -52,7 +49,7 @@ pub async fn delete_comment(
 ) {
     let comments_json = "assets/authenticated/static/api/json/comments.json";
 
-    if is_authenticated(state_original, cookie) {
+    if check_csrf(state_original, cookie, comment_id.csrf_token) {
         remove_from_json_file_based_on_id::<&str, Comment>(comments_json, comment_id.id).unwrap();
     }
 }

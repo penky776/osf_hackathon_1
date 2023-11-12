@@ -1,35 +1,60 @@
-fetch('http://localhost:3000/static/api/json/posts.json', {
-    method: 'GET',
-    headers: {
-        'Accept': 'application/json',
-    },
-})
+const csrfTokenUrl = '/get-csrf-token';
 
-    .then(postJSON => postJSON.json())
-    .then(
+fetch(csrfTokenUrl)
+    .then((response) => response.text())
+    .then((token) => {
+        {
+            sendCSRFHeader("addpost", token);
+            sendCSRFHeader("deletepost", token);
 
-        postJSON => {
-            class Posts {
-                getId() {
-                    return this.post_id;
-                }
-                getTitle() {
-                    return this.title;
-                }
-                getAuthor() {
-                    return this.author;
-                }
-                getBody() {
-                    return this.body;
+            var hiddenInputs = document.getElementsByClassName("csrf_token");
+            for (var i = 0; i < hiddenInputs.length; i++) {
+                hiddenInputs[i].value = token;
+            }
+        }
+    })
+    .catch((error) => {
+        console.error('Error fetching CSRF token:', error);
+    });
+
+// TODO
+function sendCSRFHeader(formId, token) {
+    const form = document.getElementById(formId);
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        const xhr = new XMLHttpRequest();
+        const currentUrl = window.location.href;
+        const url = currentUrl + formId;
+
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("X-CSRF-TOKEN", token);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    console.log("Request completed!");
+                    console.log(xhr.responseText);
+                } else {
+                    console.error("Request failed with status:", xhr.status);
                 }
             }
-            let newPost = Object.assign(new Posts(), postJSON);
-            const app = document.getElementById("content");
-            const p = document.createElement("p");
+        };
 
-            p.textContent = newPost.getBody();
-            app === null || app === void 0 ? void 0 : app.appendChild(p);
+        const originalformData = new FormData(form);
 
+        const data = {};
+        originalformData.forEach((value, key) => {
+            data[key] = value;
+        });
+
+        const formData = new URLSearchParams();
+
+        for (const key in data) {
+            formData.append(key, data[key]);
         }
 
-    )
+        const formBody = formData.toString();
+
+        xhr.send(formBody); // Send the request
+    });
+}
