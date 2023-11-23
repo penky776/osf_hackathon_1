@@ -15,7 +15,7 @@
         <label>What's on your mind?
             <input type="title" name="title" id="title">
             <input type="body" name="body" id="body">
-            <input type="hidden" name="token" class="csrf_token" value="">
+            <input type="hidden" name="csrf_token" class="csrf_token" value="">
         </label>
         <input type="submit" value="Submit">
     </form>
@@ -24,8 +24,11 @@
     <form id="deletepost" method="post" action="/deletepost">
         <input type="id" name="id" value="1">
         <input type="submit" value="Submit">
-        <input type="hidden" name="token" class="csrf_token" value="">
+        <input type="hidden" name="csrf_token" class="csrf_token" value="">
     </form>
+
+    Token
+    <input type="token" class="csrf_token">
 
     <script src="static/js/index.js"></script>
 </body>
