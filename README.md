@@ -8,7 +8,7 @@ api for managing an online forum (WIP)
 
 # Installation
 
-The only dependencies are rust and cargo. In this documentation, I will use <a href="https://www.postman.com/">postman</a> to test the routes as the frontend is undeveloped.
+The only dependencies are rust and cargo.
 
 After ensuring everything above is installed:
 
@@ -26,31 +26,30 @@ cargo run
 
 Log in with username and password using web client at http://localhost:3000/login
 
+Copy session_token and username from cookie storage.
 
 Copy the csrf_token from the interface or the hidden input element
 ![Alt text](images/image.png)![Alt text](images/image-1.png)
 
-Copy the request headers of the POST request that was used for login
-![Alt text](images/image-2.png)
-
-Test routes with postman
-
 ## 1. Posts
 
-### Add Post
+### POST /addpost
 
-url: http://localhost:3000/addpost
+```bash
+curl --location 'http://localhost:3000/addpost' \
+--header 'Cookie: session_token=SESSION_TOKEN; username=USERNAME' \
+--data-urlencode 'csrf_token=CSRF_TOKEN' \
+--data-urlencode 'title=POST_TITLE' \
+--data-urlencode 'body=POST_BODY'
+```
 
-Method: POST 
+### POST /deletepost
 
-Content-Type: x-www-form-urlencoded
+```bash
+curl --location 'http://localhost:3000/deletepost' \
+--header 'Cookie: session_token=SESSION_TOKEN; username=USERNAME' \
+--data-urlencode 'id=POST_ID' \
+--data-urlencode 'csrf_token=CSRF_TOKEN'
+```
 
-Form Body in the order:
-
-csrf_token: [CSRF-TOKEN]<br>
-title: [POST TITLE]<br>
-body: [POST BODY]<br>
-
-![Alt text](images/image-3.png)
-
-### Delete Post
+## 2. Comments
