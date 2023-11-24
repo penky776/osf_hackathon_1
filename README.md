@@ -1,16 +1,35 @@
 api for managing an online forum (WIP)
 
-# TODO
+## TODO
 - [x] handle DELETE requests 
 - [ ] secure user authentication 
 - [ ] Error handling
 - [ ] make documentation and more descriptive readme for the api
 
-# Installation
+
+
+
+## Table of Contents
+
+* [Dependencies](#dependencies)
+* [Usage](#usage)
+* [Documentation](#documentation)
+    - [Authenticate](#1-authenticate)
+        - [Login](#log-in)
+        - [Register](#register)
+    - [User](#2-user)
+        - [Delete User](#delete-user)
+        - [Get CSRF Token](#get-csrf-token)
+    - [Posts](#2-posts)
+        - [Add Post](#add-post)
+        - [Delete Post](#delete-post)
+    - [Comments](#3-comments)
+
+## Dependencies
 
 The only dependencies are rust and cargo.
 
-After ensuring everything above is installed:
+## Usage
 
 ``` bash
 git clone git@github.com:penky776/osf_hackathon_1.git
@@ -22,18 +41,44 @@ To start the server, cd into the directory and:
 cargo run
 ```
 
-# Usage
+## Documentation
 
-Log in with username and password using web client at http://localhost:3000/login
+### 1. Authenticate
 
-Copy session_token and username from cookie storage.
+#### Log in 
+`POST /login`
 
-Copy the csrf_token from the interface or the hidden input element
-![Alt text](images/image.png)![Alt text](images/image-1.png)
+```bash
+curl --location 'http://localhost:3000/login' \
+--data-urlencode 'username=USERNAME' \
+--data-urlencode 'password=PASSWORD' -v
+```
 
-## 1. Posts
+#### Register
+`POST /register`
 
-### POST /addpost
+```bash
+curl --location 'http://localhost:3000/register' \
+--data-urlencode 'username=USERNAME' \
+--data-urlencode 'password=PASSWORD' -v
+```
+
+### 2. User
+
+#### Delete User
+
+#### Get CSRF Token
+`GET /get-csrf-token`
+
+```bash
+curl --location 'http://localhost:3000/get-csrf-token' \
+--header 'Cookie: session_token=SESSION_TOKEN; username=USERNAME'
+```
+
+### 2. Posts
+
+#### Add Post 
+`POST /addpost`
 
 ```bash
 curl --location 'http://localhost:3000/addpost' \
@@ -43,7 +88,8 @@ curl --location 'http://localhost:3000/addpost' \
 --data-urlencode 'body=POST_BODY'
 ```
 
-### POST /deletepost
+#### Delete Post 
+`POST /deletepost`
 
 ```bash
 curl --location 'http://localhost:3000/deletepost' \
@@ -52,4 +98,8 @@ curl --location 'http://localhost:3000/deletepost' \
 --data-urlencode 'csrf_token=CSRF_TOKEN'
 ```
 
-## 2. Comments
+### 3. Comments
+
+#### Add Comment
+
+#### Delete Comment

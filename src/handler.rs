@@ -85,19 +85,23 @@ pub async fn get_csrf_token(
     State(state_original): State<AppState>,
     TypedHeader(cookie): TypedHeader<Cookie>,
 ) -> impl IntoResponse {
-    let username = cookie.get("username").unwrap();
-    let user_id = get_user_id("users.json", username.to_string())
-        .unwrap()
-        .to_string();
+    if is_authenticated(state_original.clone(), cookie.clone()) {
+        let username = cookie.get("username").unwrap();
+        let user_id = get_user_id("users.json", username.to_string())
+            .unwrap()
+            .to_string();
 
-    return Json(
-        state_original
-            .data
-            .lock()
-            .unwrap()
-            .get_key_value(&user_id)
-            .unwrap()
-            .1
-            .clone(),
-    );
+        return Json(
+            state_original
+                .data
+                .lock()
+                .unwrap()
+                .get_key_value(&user_id)
+                .unwrap()
+                .1
+                .clone(),
+        );
+    } else {
+        return Json("Unauthorized!".to_string());
+    }
 }

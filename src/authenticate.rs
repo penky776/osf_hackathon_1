@@ -60,6 +60,8 @@ pub async fn authenticate_login(
 
             let mut locked_state = state_original.data.lock().unwrap();
 
+            eprintln!("{:?}, {:?}", user.username.clone(), sess_token.clone());
+
             locked_state.insert(user.username.clone(), sess_token.clone());
 
             // generate csrf token and insert it into hashamp
