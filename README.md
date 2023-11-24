@@ -18,10 +18,12 @@ api for managing an online forum
     - [User](#2-user)
         - [Delete User](#delete-user)
         - [Get CSRF Token](#get-csrf-token)
-    - [Posts](#2-posts)
+    - [Posts](#3-posts)
         - [Add Post](#add-post)
         - [Delete Post](#delete-post)
-    - [Comments](#3-comments)
+    - [Comments](#4-comments)
+        - [Add Comment](#add-comment)
+        - [Delete Comment](#delete-comment)
 
 ## Dependencies
 
