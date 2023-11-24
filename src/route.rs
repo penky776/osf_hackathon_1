@@ -25,7 +25,7 @@ async fn main() {
         .route("/deletepost", post(delete_post))
         .route("/addcomment", post(add_comment))
         .route("/deletecomment", post(delete_comment))
-        .route("/deleteuser", delete(del_user).post(del_user))
+        .route("/deleteuser", delete(del_user))
         .nest_service("/static", ServeDir::new("assets/authenticated/static"))
         .route("/login", get(login).post(authenticate_login))
         .route("/register", get(register).post(authenticate_register))
