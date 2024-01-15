@@ -1,0 +1,379 @@
+{
+	"info": {
+		"_postman_id": "285c528c-9509-463c-847a-8dee4fdc61be",
+		"name": "forum api",
+		"description": "Forum API for OSF Hackathon 2023",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31356077"
+	},
+	"item": [
+		{
+			"name": "Authenticate",
+			"item": [
+				{
+					"name": "log in",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "USERNAME",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "PASSWORD",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/login",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "register",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "USERNAME",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "PASSWORD",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/register",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-csrf-token",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "session_token={{session_token}}; username={{username}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": []
+						},
+						"url": {
+							"raw": "{{baseURL}}/get-csrf-token",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"get-csrf-token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "delete user",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "session_token={{session_token}}; username={{username}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/deleteuser",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"deleteuser"
+							]
+						},
+						"description": "Delete User"
+					},
+					"response": []
+				},
+				{
+					"name": "get user",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			],
+			"description": "Add, delete, and get users"
+		},
+		{
+			"name": "Posts",
+			"item": [
+				{
+					"name": "add post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "session_token={{session_token}}; username={{username}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "csrf_token",
+									"value": "{{Csrf_token}}",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "POST_TITLE",
+									"type": "text"
+								},
+								{
+									"key": "body",
+									"value": "POST_BODY",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/addpost",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"addpost"
+							]
+						},
+						"description": "Add Post"
+					},
+					"response": []
+				},
+				{
+					"name": "delete post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "session_token={{session_token}}; username={{username}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "id",
+									"value": "POST_ID",
+									"description": "Post ID",
+									"type": "text"
+								},
+								{
+									"key": "csrf_token",
+									"value": "{{Csrf_token}}",
+									"description": "CSRF Token",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/deletepost",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"deletepost"
+							]
+						},
+						"description": "Delete Post"
+					},
+					"response": []
+				},
+				{
+					"name": "get post",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			],
+			"description": "Add, delete, and get posts"
+		},
+		{
+			"name": "Comments",
+			"item": [
+				{
+					"name": "add comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "session_token={{session_token}}; username={{username}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "body",
+									"value": "COMMENT_BODY",
+									"type": "text"
+								},
+								{
+									"key": "post_id",
+									"value": "POST_ID",
+									"type": "text"
+								},
+								{
+									"key": "csrf_token",
+									"value": "{{Csrf_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/addcomment",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"addcomment"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "session_token={{session_token}}; username={{username}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "id",
+									"value": "COMMENT_ID",
+									"type": "text"
+								},
+								{
+									"key": "csrf_token",
+									"value": "{{Csrf_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/deletecomment",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"deletecomment"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get comment",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "session_token",
+			"value": "SESSION_TOKEN"
+		},
+		{
+			"key": "username",
+			"value": "USERNAME"
+		},
+		{
+			"key": "Csrf_token",
+			"value": "CSRF_TOKEN"
+		}
+	]
+}
